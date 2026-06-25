@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+	<title>ARCE Leaflet</title>
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+	integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+	crossorigin=""/>
+	<script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+	integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+	crossorigin=""></script>
+	<script type="text/javascript" src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+	<script type="text/javascript" src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
+	<script src="https://unpkg.com/esri-leaflet@2.3.3/dist/esri-leaflet.js"
+	integrity="sha512-cMQ5e58BDuu1pr9BQ/eGRn6HaR6Olh0ofcHFWe5XesdCITVuSBiBZZbhCijBe5ya238f/zMMRYIMIIg1jxv4sQ=="
+	crossorigin=""></script>
+	<script type="text/javascript" src="assets/js/jquery.csv.js"></script>
+	<script type="text/javascript" src="assets/js/leaflet.shpfile.js"></script>
+	<script type="text/javascript" src="assets/js/leaflet.ajax.min.js"></script>
+	<script type="text/javascript" src="assets/js/leaflet-search.js"></script>
+	<script type="text/javascript" src="assets/js/leaflet.restoreview.js"></script>
+	<link rel="stylesheet" href="assets/css/leaflet-search.css" />
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+	<link rel="stylesheet" href="assets/css/L.Control.Locate.min.css" />
+	<link rel="stylesheet" href="assets/css/easy-button.css" />
+	<script type="text/javascript" src="assets/js/fuse.js"></script>
+	<script type="text/javascript" src="assets/js/L.Control.Locate.min.js" charset="utf-8"></script>
+	<script type="text/javascript" src="assets/js/easy-button.js"></script>
+
+
+
+</head>
+<body>
+
+<style>
+body { margin:0; padding:0; }
+html,body, #map { height: 100%; }
+.search-tip b {
+	color: #fff;
+}
+.Lot7.search-tip b {
+	background: #7587ff
+}
+.Sec49.search-tip b {
+	background: #75ff87
+}
+.MayorsOfAlbany.search-tip b {
+	background: #ff00dd
+}
+.GAR.search-tip b {
+	background: #000080
+}
+.Notable.search-tip b {
+	background: #ff7700
+}
+.Indep.search-tip b {
+	background: #7700ff
+}
+.Afr.search-tip b {
+	background: #eedd00
+}
+.Art.search-tip b {
+	background: #ff4277
+}
+.Groups.search-tip b {
+	background: #86cece
+}
+.AuthPub.search-tip b {
+	background: #996038
+}
+.Business.search-tip b {
+	background: #558e76
+}
+.CivilWar.search-tip b {
+	background: #a0a0a0
+}
+.Pillars.search-tip b {
+	background: #d10008
+}
+.search-tip {
+	white-space: nowrap;
+}
+.search-tip b {
+	display: inline-block;
+	clear: left;
+	padding: 0 4px;
+	margin-left: 4px;
+}
+.arce-tip {
+	background: transparent;
+    border: none;
+    box-shadow: none;
+}
+.leaflet-tooltip-left.arce-tip::before {
+	border-left-color: transparent;
+}
+.leaflet-tooltip-right.arce-tip::before  {
+    border-right-color: transparent;
+  }
+img {
+	width:80%;
+	height:80%;
+}
+
+</style>
+
+<div id="map"></div>
+
+<script>
+
+var coords = [42.70777778,-73.73027778];
+var zoomLevel = 15;
+var layerLabels;
+var layerOSM;
+var selected;
+var s49data;
+var fullscreen = L.easyButton('fa-expand', function(btn, map){;
+			openFullscreen();
+		},"Fullscreen");
+
+var map = L.map('map', {
+	maxZoom: 25,
+	maxNativeZoom: 19
+}); // Map variable
+
+if (!map.restoreView()) {
+        map.setView(coords, zoomLevel);
+}
+
+
+
+var extent = L.easyButton('fa-globe', function(btn, map){; // Return to default extent Button
+    map.flyTo(coords,zoomLevel);
+},"Return to default extent");
+
+
+	
+var loc = L.control.locate();
+
+var layerTopo = L.esri.basemapLayer("Topographic",{maxZoom: 25, maxNativeZoom: 19}).addTo(map);
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/Sec49.csv",
+    async: false,
+    success: function (csvd) {
+        s49data = $.csv.toArrays(csvd);
+    },
+    dataType: "text"
+});
+
+function getIntCol(array, col){
+   var column = new Array();
+   for(var i=0; i<array.length; i++){
+	  column.push(parseInt(array[i][col],10));
+   }
+   return column;
+}
+
+function getCol(array, col){
+   var column = new Array();
+   for(var i=0; i<array.length; i++){
+	  column.push(array[i][col]);
+   }
+   return column;
+}
+
+function indexOfAll(array, search) {
+  var i = array.indexOf(search),
+      indexes = [];
+  while (i !== -1) {
+    indexes.push(i);
+    i = array.indexOf(search, ++i);
+  }
+  return indexes;
+}
+
+function openFullscreen() {
+	var doc = document.documentElement;
+	if (doc.requestFullscreen) {
+	doc.requestFullscreen();
+	} else if (doc.mozRequestFullScreen) { 
+	doc.mozRequestFullScreen();
+	} else if (doc.webkitRequestFullscreen) { 
+	doc.webkitRequestFullscreen();
+	} else if (doc.msRequestFullscreen) { 
+	doc.msRequestFullscreen();
+	}
+}
+
+	
+function onEachLot7Feature(feature, layer) {
+    if (feature.properties && feature.properties.Full_Name) {
+		var list ="<dl>"
+		if (feature.properties.Highest_Ra != "Unknown" && feature.properties.Highest_Ra != null)
+		{ 
+				list = list + "<dt><b>" + feature.properties.Highest_Ra + " " + feature.properties.Full_Name + "</b></dt>"
+				   + "<dt>" + feature.properties.Unit + "</dt><hr>"
+				   
+			
+			layer.bindPopup(L.popup().setContent(list));
+		} else {
+			list = list + "<dt><b>" + feature.properties.Full_Name 
+			if (feature.properties.Full_Name == "Unknown")
+			{
+				list = list + " [Soldiers Lot: " + "Headstone " + feature.properties.Headstone_ + "]"
+				feature.properties.Full_Name = feature.properties.Full_Name + " [Soldiers Lot: Headstone " + feature.properties.Headstone_ + "]"
+			}
+			if (feature.properties.Unit != "Unknown" && feature.properties.Unit != "UNKNOWN                           (See Notes)" && feature.properties.Unit != "UNKNOWN")
+			{
+				list = list + "</b></dt>" + "<dt>" +  feature.properties.Unit
+			}	
+			list = list + "</b></dt><hr>"
+		}
+		
+		if (feature.properties.Headstone_ == 42)
+		{
+			list = list + '<dt><a href ="https://www.albany.edu/arce/Soldiers33.html#"><img src="https://www.albany.edu/arce/images/Soldier33b.jpg" style="width:80%;height:80%;"></a></dt>'
+		}
+		
+		if (feature.properties.Service_Re != "Unknown")
+		{
+			list = list + "<dt>" + feature.properties.Service_Re + "</dt><br/>"
+		}
+		if (feature.properties.Death == null || feature.properties.Death == "UNKNOWN")
+		{
+			list = list 
+			   + "<dt>Date of death unknown : Headstone " + feature.properties.Headstone_ + "</dt></dl>"	
+		}
+		else
+		{
+			list = list 
+			   + "<dt>Died " + feature.properties.Death + " : Headstone " + feature.properties.Headstone_ + "</dt></dl>"
+		}
+		feature.properties.title = "Lot7";
+		layer.bindPopup(L.popup().setContent(list));
+        
+    }
+}
+function onEachGARFeature(feature, layer) {
+    if (feature.properties && feature.properties.Full_Name) {
+		var list ="<dl>"
+		if (feature.properties.Highest_Ra != "Unknown" && feature.properties.Highest_Ra != null)
+		{ 
+				list = list + "<dt><b>" + feature.properties.Highest_Ra + " " + feature.properties.Full_Name + "</b></dt>"
+				   + "<dt>" + feature.properties.Unit + "</dt><hr>"
+				   
+			
+			layer.bindPopup(L.popup().setContent(list));
+		} else {
+			list = list + "<dt><b>" + feature.properties.Full_Name 
+			if (feature.properties.Full_Name == "Unknown")
+			{
+				list = list + " [GAR: " + "Headstone " + feature.properties.Headstone_ + "]"
+				feature.properties.Full_Name = feature.properties.Full_Name + " [GAR: Headstone " + feature.properties.Headstone_ + "]"
+			}
+			if (feature.properties.Unit != "Unknown" && feature.properties.Unit != "UNKNOWN                           (See Notes)" && feature.properties.Unit != "UNKNOWN")
+			{
+				list = list + "</b></dt>" + "<dt>" +  feature.properties.Unit
+			}	
+			list = list + "</b></dt><hr>"
+		}
+		
+		if (feature.properties.Death == null || feature.properties.Death == "UNKNOWN")
+		{
+			list = list  +  "Headstone " + feature.properties.Headstone_ + "<dt>Date of death: Unknown</dt></dl>"
+		}
+		else
+		{
+			var death = new Date(feature.properties.Death);
+			var deathOutput = (death.getMonth()+1) + "/" + death.getDate() + "/" + death.getFullYear();
+			list = list + "Headstone " + feature.properties.Headstone_ + "<dt>Date of death: " + deathOutput + "</dt></dl>"
+		}
+		feature.properties.title = "GAR";
+		layer.bindPopup(L.popup().setContent(list));
+        
+    }
+}
+
+function onEachMayorFeature(feature, layer) {
+	if (feature.properties && feature.properties.Mayor) {
+		var list ="<dl>"
+		if (feature.properties.Mayor != "Unknown" && feature.properties.Mayor != null)
+		{ 
+				list = list + "<dt><b>" + feature.properties.Mayor + "</b></dt><hr>"
+			layer.bindPopup(L.popup().setContent(list));
+		} 
+		else {
+			list = list + "<dt><b>" + feature.properties.Mayor 
+			}
+		if (feature.properties.Initial_Te != null)
+		{
+			list = list + "<dt>" +  "Initial Term: " + feature.properties.Initial_Te + "</dt>"
+		}
+		else {
+			list = list + "<dt>" +  "Initial Term: Unknown" + "</dt>"
+		}
+		if (feature.properties.Subsequent != null)
+		{
+			list = list + "<dt>" + "Subsequent Term: " + feature.properties.Subsequent + "</dt>"
+		}
+		else {
+			list = list + "<dt>" + "</dt>"
+		}
+		if (feature.properties.Section != null)
+		{
+			list = list + "<dt>" + "Section " + feature.properties.Section
+		}
+		if (feature.properties.Lot != null)
+		{
+			list = list + ", Lot " + feature.properties.Lot
+		}
+		if (feature.properties.Birth == null || feature.properties.Birth == "UNKNOWN")
+		{
+			list = list 
+			   + "<dt>Date of birth: Unknown  " + "</dt>"
+		}
+		else {
+			var birth = new Date(feature.properties.Birth);
+			var output = (birth.getMonth()) + "/" + birth.getDate() + "/" + birth.getFullYear();
+			var death = new Date(feature.properties.Death);
+			var deathOutput = (death.getMonth()+1) + "/" + death.getDate() + "/" + death.getFullYear();
+			list = list 
+			   + "<dt>Date of birth: " + output + "</dt>"
+		}
+		if (feature.properties.Death == null || feature.properties.Death == "UNKNOWN")
+		{
+			var birth = new Date(feature.properties.Birth);
+			var output = (birth.getMonth()) + "/" + birth.getDate() + "/" + birth.getFullYear();
+			var death = new Date(feature.properties.Death);
+			var deathOutput = (death.getMonth()+1) + "/" + death.getDate() + "/" + death.getFullYear();
+			list = list 
+			   + "<dt>Date of death: Unknown  " + "</dt>"
+		}
+		else
+		{
+			var birth = new Date(feature.properties.Birth);
+			var output = (birth.getMonth()) + "/" + birth.getDate() + "/" + birth.getFullYear();
+			var death = new Date(feature.properties.Death);
+			var deathOutput = (death.getMonth()+1) + "/" + death.getDate() + "/" + death.getFullYear();
+			list = list 
+			   + "<dt>Date of death:  " + deathOutput + "</dt>"
+		}
+		if (feature.properties.Bio_Portri != 'NONE' && feature.properties.Bio_Portri != null)
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/images/" + feature.properties.Bio_Portri + '"><img src="' + "https://www.albany.edu/arce/images/" + feature.properties.Bio_Portri + '" onerror="this.src=' + "'http://www.albany.edu/arce/images/no-image.jpg'" + '"' + '/></a></dt>'
+		}
+
+		feature.properties.title = "Mayor";
+		layer.bindPopup(L.popup().setContent(list));
+	}
+    }
+
+function onEachSec49Feature(feature, layer) {
+    if (feature.properties) {
+		if (feature.properties.HeadstoneI != null)
+		{	
+			var y = feature.properties.HeadstoneI
+			var x = getIntCol(s49data,37)
+			var z = indexOfAll(x,y)
+			
+			var names = getCol(s49data,41)
+			var dob = getCol(s49data,42)
+			var dod = getCol(s49data,43)
+			var stoneType = getCol(s49data, 39)
+			var read = getCol(s49data, 38)
+			
+			var list = "<dl>" 
+			var nameList = ""
+			for(var i=0; i<z.length; i++){
+				if (i == 0)
+				{
+					nameList = ""
+				}
+				if (i == 0 && z.length != 1)
+				{
+					
+					list = list + "<dt><b>Section " + feature.properties.Section + ": Lot " + feature.properties.Lot + ", Row " + feature.properties.Row + ", Position " + feature.properties.Position + "</b></dt><hr>"
+				}
+				if (names[z[i]] != "UNKNOWN" && names[z[i]] != "#NAME?" && names[z[i]] != "")
+				{
+					list = list + "<dt><b>" + names[z[i]] + "</b></dt>"
+					nameList += names[z[i]]
+					if (z.length - 1 == i && z.length != 1)
+					{
+						nameList += ""
+						layer.feature.properties["Full_Name"] = nameList;
+						if (layer.feature.properties["Full_Name"].includes("Worth"))
+						{
+							layer.feature.properties["Full_Name"] = "Worth Family Monument";
+						}
+					} else if (z.length - 1 != i && z.length != 1){
+						nameList += ", "
+					}
+					
+					if (z.length == 1)
+					{
+						layer.feature.properties["Full_Name"] = names[z[i]]
+					}
+					
+
+				} else {
+					list = list + "<dt><b>" + "Unknown" + " [Section " + feature.properties.Section + ": Lot " + feature.properties.Lot + ", Row " + feature.properties.Row + ", Position " + feature.properties.Position + "]</b></dt>"
+					layer.feature.properties["Full_Name"] = "Unknown" + " [Section " + feature.properties.Section + ": Lot " + feature.properties.Lot + ", Row " + feature.properties.Row + ", Position " + feature.properties.Position + "]"
+				}
+				if (i == 0 && z.length == 1)
+				{
+					list = list + "<hr>"
+				}
+				
+				if (dob[z[i]] != null && dob[z[i]] != "")
+				{
+					list = list + "<dt>" + dob[z[i]] + " - "
+				} else 
+				{
+					list = list + "<dt>" + "???? - "
+				}
+				if (dod[z[i]] != null && dod[z[i]] != "")
+				{
+					list = list + dod[z[i]] + "</dt>"
+				} else 
+				{
+					list = list + "????</dt>"
+				}
+				if (stoneType[z[i]] != null && stoneType[z[i]] != "" && i == z.length - 1)
+				{
+
+					list = list + "<dt>Headstone is made from " + stoneType[z[i]] + ". It is "
+					
+					if (read[z[i]] == "Yes")
+					{
+						list = list + "fully readable.</dt>"
+					}
+					else if (read[z[i]] == "Partial")
+					{
+						list = list + "partially readable.</dt>"
+					}
+					else if (read[z[i]] == "No")
+					{
+						list = list + "not readable.</dt>"
+					} else 
+					{
+						list = list + "</dt>"
+					}
+				}
+				if (i != z.length - 1)
+				{
+					list = list + "<br/>"
+				}
+			}
+			list = list + "Lot " + feature.properties.Lot + ", Row " + feature.properties.Row + ", Position " + feature.properties.Position + "</dl>"
+		}
+		feature.properties.title = "Sec49";
+		layer.bindPopup(L.popup().setContent(list));
+    }
+}
+
+function onEachNotable19Feature(feature, layer) {
+    if (feature.properties && feature.properties.Full_Name) {
+		var list ="<dl>"
+		list = list + "<dt><b>" + feature.properties.Full_Name + "</b></dt><hr>"
+		if (feature.properties.Titles != null)
+		{
+			list = list + "<dt>" + feature.properties.Titles + "</dt>"
+		}
+		/*
+		if (feature.properties.NotablesID != 33)
+		{
+			var death = feature.properties.Death.slice(5,7) + "/" + feature.properties.Death.slice(8,10) + "/" + feature.properties.Death.slice(0,4);
+			list = list + "<dt>Died " + death + ".</dt></dl>"
+		}
+		*/
+		list = list + "<dt>(Click image to view detailed biography)</dt>"
+
+		list = list + '<dt><a href ="' + feature.properties.BioURL + '"><img src="' + feature.properties.PhotoURL + '" onerror="this.src=' + "'https://www.albany.edu/arce/images/no-image.jpg'" + '"' + '/></a></dt>'
+		
+		
+		
+		feature.properties.title = "Notable";
+		layer.bindPopup(L.popup().setContent(list));
+        
+    }
+}
+
+function onEachIndep19Feature(feature, layer) {
+    if (feature.properties && feature.properties.Full_Name) {
+		var list ="<dl>"
+		list = list + "<dt><b>" + feature.properties.Full_Name + "</b></dt><hr>"
+				if (feature.properties.Titles != null)
+		{
+			list = list + "<dt>" + feature.properties.Titles + "</dt>"
+		}
+		/*
+		var death = feature.properties.Death.slice(5,7) + "/" + feature.properties.Death.slice(8,10) + "/" + feature.properties.Death.slice(0,4);
+			list = list + "<dt>Died " + death + ".</dt></dl>"
+			*/
+
+		list = list + "<dt>(Click image to view detailed biography)</dt>"
+
+		list = list + '<dt><a href ="' + feature.properties.BioURL + '"><img src="' + feature.properties.IMGURL + '" onerror="this.src=' + "'https://www.albany.edu/arce/images/no-image.jpg'" + '"' + '/></a></dt>'
+		
+		
+		
+		feature.properties.title = "Indep";
+		layer.bindPopup(L.popup().setContent(list));
+        
+    }
+}
+
+function onEachNotableFeature(feature, layer) {
+    if (feature.properties && feature.properties.Full_Name) {
+		var list ="<dl>"
+		list = list + "<dt><b>" + feature.properties.Full_Name + "</b></dt><hr>"
+				if (feature.properties.Titles != null)
+		{
+			list = list + "<dt>" + feature.properties.Titles + "</dt>"
+		}
+		/*
+		var death = feature.properties.Death.slice(5,7) + "/" + feature.properties.Death.slice(8,10) + "/" + feature.properties.Death.slice(0,4);
+			list = list + "<dt>Died " + death + ".</dt></dl>"
+			*/
+
+		list = list + "<dt>(Click image to view detailed biography)</dt>"
+
+		if (feature.properties.Bio_Portra != "NONE")
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/" + feature.properties.Bio_Portra + '" onerror="this.src=' + "'https://www.albany.edu/arce/images/no-image.jpg'" + '"' + '/></a></dt>'
+		} else 
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/no-image.jpg" + '"/></a></dt>'
+		}
+		
+		
+		
+		
+		feature.properties.title = "Notable";
+		layer.bindPopup(L.popup().setContent(list));
+        
+    }
+}
+
+function onEachIndepFeature(feature, layer) {
+    if (feature.properties && feature.properties.Full_Name) {
+		var list ="<dl>"
+		list = list + "<dt><b>" + feature.properties.Full_Name + "</b></dt><hr>"
+				if (feature.properties.Titles != null)
+		{
+			list = list + "<dt>" + feature.properties.Titles + "</dt>"
+		}
+		/*
+		var death = feature.properties.Death.slice(5,7) + "/" + feature.properties.Death.slice(8,10) + "/" + feature.properties.Death.slice(0,4);
+			list = list + "<dt>Died " + death + ".</dt></dl>"
+			*/
+
+		list = list + "<dt>(Click image to view detailed biography)</dt>"
+
+		if (feature.properties.Bio_Portra != "NONE")
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/" + feature.properties.Bio_Portra + '" onerror="this.src=' + "'https://www.albany.edu/arce/images/no-image.jpg'" + '"' + '/></a></dt>'
+		} else 
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/no-image.jpg" + '"/></a></dt>'
+		}
+		
+		
+		
+		feature.properties.title = "Indep";
+		layer.bindPopup(L.popup().setContent(list));
+        
+    }
+}
+
+function onEachAAFeature(feature, layer) {
+    if (feature.properties && feature.properties.Full_Name) {
+		var list ="<dl>"
+		list = list + "<dt><b>" + feature.properties.Full_Name + "</b></dt><hr>"
+				if (feature.properties.Titles != null)
+		{
+			list = list + "<dt>" + feature.properties.Titles + "</dt>"
+		}
+		/*
+		var death = feature.properties.Death.slice(5,7) + "/" + feature.properties.Death.slice(8,10) + "/" + feature.properties.Death.slice(0,4);
+			list = list + "<dt>Died " + death + ".</dt></dl>"
+			*/
+
+		list = list + "<dt>(Click image to view detailed biography)</dt>"
+
+		if (feature.properties.Bio_Portra != "NONE")
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/" + feature.properties.Bio_Portra + '" onerror="this.src=' + "'https://www.albany.edu/arce/images/no-image.jpg'" + '"' + '/></a></dt>'
+		} else 
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/no-image.jpg" + '"/></a></dt>'
+		}
+		
+		
+		
+		feature.properties.title = "Afr";
+		layer.bindPopup(L.popup().setContent(list));
+        
+    }
+}
+
+function onEachArtistFeature(feature, layer) {
+    if (feature.properties && feature.properties.Full_Name) {
+		var list ="<dl>"
+		list = list + "<dt><b>" + feature.properties.Full_Name + "</b></dt><hr>"
+				if (feature.properties.Titles != null)
+		{
+			list = list + "<dt>" + feature.properties.Titles + "</dt>"
+		}
+
+		list = list + "<dt>(Click image to view detailed biography)</dt>"
+
+		if (feature.properties.Bio_Portra != "NONE")
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/" + feature.properties.Bio_Portra + '" onerror="this.src=' + "'https://www.albany.edu/arce/images/no-image.jpg'" + '"' + '/></a></dt>'
+		} else 
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/no-image.jpg" + '"/></a></dt>'
+		}
+		
+		
+		
+		feature.properties.title = "Art";
+		layer.bindPopup(L.popup().setContent(list));
+        
+    }
+}
+
+function onEachAssociationFeature(feature, layer) {
+    if (feature.properties && feature.properties.Full_Name) {
+		var list ="<dl>"
+		list = list + "<dt><b>" + feature.properties.Full_Name + "</b></dt><hr>"
+				if (feature.properties.Titles != null)
+		{
+			list = list + "<dt>" + feature.properties.Titles + "</dt>"
+		}
+
+		list = list + "<dt>(Click image to view detailed biography)</dt>"
+
+		if (feature.properties.Bio_Portra != "NONE")
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/" + feature.properties.Bio_Portra + '" onerror="this.src=' + "'https://www.albany.edu/arce/images/no-image.jpg'" + '"' + '/></a></dt>'
+		} else 
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/no-image.jpg" + '"/></a></dt>'
+		}
+		
+		
+		
+		feature.properties.title = "Groups";
+		layer.bindPopup(L.popup().setContent(list));
+        
+    }
+}
+
+function onEachAuthorFeature(feature, layer) {
+    if (feature.properties && feature.properties.Full_Name) {
+		var list ="<dl>"
+		list = list + "<dt><b>" + feature.properties.Full_Name + "</b></dt><hr>"
+				if (feature.properties.Titles != null)
+		{
+			list = list + "<dt>" + feature.properties.Titles + "</dt>"
+		}
+
+		list = list + "<dt>(Click image to view detailed biography)</dt>"
+
+		if (feature.properties.Bio_Portra != "NONE")
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/" + feature.properties.Bio_Portra + '" onerror="this.src=' + "'https://www.albany.edu/arce/images/no-image.jpg'" + '"' + '/></a></dt>'
+		} else 
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/no-image.jpg" + '"/></a></dt>'
+		}
+		
+		
+		
+		feature.properties.title = "AuthPub";
+		layer.bindPopup(L.popup().setContent(list));
+        
+    }
+}
+
+function onEachBusinessFeature(feature, layer) {
+    if (feature.properties && feature.properties.Full_Name) {
+		var list ="<dl>"
+		list = list + "<dt><b>" + feature.properties.Full_Name + "</b></dt><hr>"
+				if (feature.properties.Titles != null)
+		{
+			list = list + "<dt>" + feature.properties.Titles + "</dt>"
+		}
+
+		list = list + "<dt>(Click image to view detailed biography)</dt>"
+
+		if (feature.properties.Bio_Portra != "NONE")
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/" + feature.properties.Bio_Portra + '" onerror="this.src=' + "'https://www.albany.edu/arce/images/no-image.jpg'" + '"' + '/></a></dt>'
+		} else 
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/no-image.jpg" + '"/></a></dt>'
+		}
+		
+		
+		
+		feature.properties.title = "Business";
+		layer.bindPopup(L.popup().setContent(list));
+        
+    }
+}
+
+
+
+function onEachCivilWarFeature(feature, layer) {
+    if (feature.properties && feature.properties.Full_Name) {
+		var list ="<dl>"
+		list = list + "<dt><b>" + feature.properties.Full_Name + "</b></dt><hr>"
+				if (feature.properties.Titles != null)
+		{
+			list = list + "<dt>" + feature.properties.Titles + "</dt>"
+		}
+
+		list = list + "<dt>(Click image to view detailed biography)</dt>"
+
+		if (feature.properties.Bio_Portra != "NONE")
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/" + feature.properties.Bio_Portra + '" onerror="this.src=' + "'https://www.albany.edu/arce/images/no-image.jpg'" + '"' + '/></a></dt>'
+		} else 
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/no-image.jpg" + '"/></a></dt>'
+		}
+		
+		
+		
+		feature.properties.title = "CivilWar";
+		layer.bindPopup(L.popup().setContent(list));
+        
+    }
+}
+
+function onEachPillarFeature(feature, layer) {
+    if (feature.properties && feature.properties.Full_Name) {
+		var list ="<dl>"
+		list = list + "<dt><b>" + feature.properties.Full_Name + "</b></dt><hr>"
+				if (feature.properties.Titles != null)
+		{
+			list = list + "<dt>" + feature.properties.Titles + "</dt>"
+		}
+
+		list = list + "<dt>(Click image to view detailed biography)</dt>"
+
+		if (feature.properties.Bio_Portra != "NONE")
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/" + feature.properties.Bio_Portra + '" onerror="this.src=' + "'https://www.albany.edu/arce/images/no-image.jpg'" + '"' + '/></a></dt>'
+		} else 
+		{
+			list = list + '<dt><a href ="' + "https://www.albany.edu/arce/" + feature.properties.Tour_Bio + ".html" + '"><img src="' + "https://www.albany.edu/arce/images/no-image.jpg" + '"/></a></dt>'
+		}
+		
+		
+		
+		feature.properties.title = "Pillars";
+		layer.bindPopup(L.popup().setContent(list));
+        
+    }
+}
+
+
+$('img').on("error", function() {
+  $(this).attr('src', 'https://www.albany.edu/arce/images/no-image.jpg');
+});
+	
+function onEachSection(feature, layer) {
+    if (feature.properties && feature.properties.Section) {
+		layer.on('mouseover', function () {
+		  this.setStyle({
+			'weight': '6'
+		  });
+		});
+		layer.on('mouseout', function () {
+			this.setStyle({
+				'weight': '2'
+			  });
+		});
+		var list ="<dl>"
+		list = list + "<dt><b>Section " + feature.properties.Section;
+		if (String(feature.properties.Section) == "49")
+		{
+			list = list + ", Lot " + feature.properties.Lot + ": " + feature.properties.Comments
+		}
+		list = list + "</b></dt></dl>"
+		layer.bindPopup(list, {permanent: true, 
+				   direction: "center"}).openPopup();
+    }
+}
+
+function onEachRoad(feature, layer) {
+    if (feature.properties && feature.properties.Motor_Vehi) {
+		var list ="<dl>"
+		list = list + "<dt>";
+		if (feature.properties.Cemetery_R != null)
+		{
+			list = list + "<b>" + feature.properties.Cemetery_R + "</b><br/>"
+		}
+		if (feature.properties.Motor_Vehi == "YES")
+		{
+			list = list + "Motor vehicle accessible."
+			layer.setStyle(motorRoadsStyle);
+		} else 
+		{
+			list = list + "Not accessible by motor vehicles."
+		}
+		list = list + "</b></dt></dl>"
+		
+		layer.bindPopup(L.popup().setContent(list));
+    }
+}
+
+var pointMarker = {
+    radius: 10,
+    fillColor: "#7587ff",
+    color: "#000",
+    weight: 1,
+    opacity: 1,
+    fillOpacity: 0.8
+};
+
+var pointMarker2 = {
+    radius: 10,
+    fillColor: "#75ff87",
+    color: "#000",
+    weight: 1,
+    opacity: 1,
+    fillOpacity: 0.8
+};
+
+var pointMarker3 = {
+    radius: 10,
+    fillColor: "#ff7700",
+    color: "#000",
+    weight: 1,
+    opacity: 1,
+    fillOpacity: 0.8
+};
+
+var pointMarker4 = {
+    radius: 10,
+    fillColor: "#7700ff",
+    color: "#000",
+    weight: 1,
+    opacity: 1,
+    fillOpacity: 0.8
+};
+
+var pointMarker5 = {
+    radius: 10,
+    fillColor: "#ffee00",
+    color: "#000",
+    weight: 1,
+    opacity: 1,
+    fillOpacity: 0.8
+};
+
+var pointMarker6 = {
+    radius: 10,
+    fillColor: "#ff4277",
+    color: "#000",
+    weight: 1,
+    opacity: 1,
+    fillOpacity: 0.8
+};
+
+var pointMarker7 = {
+    radius: 10,
+    fillColor: "#86cece",
+    color: "#000",
+    weight: 1,
+    opacity: 1,
+    fillOpacity: 0.8
+};
+
+var pointMarker8 = {
+    radius: 10,
+    fillColor: "#996038",
+    color: "#000",
+    weight: 1,
+    opacity: 1,
+    fillOpacity: 0.8
+};
+
+var pointMarker9 = {
+    radius: 10,
+    fillColor: "#558e76",
+    color: "#000",
+    weight: 1,
+    opacity: 1,
+    fillOpacity: 0.8
+};
+
+var pointMarker10 = {
+    radius: 10,
+    fillColor: "#a0a0a0",
+    color: "#000",
+    weight: 1,
+    opacity: 1,
+    fillOpacity: 0.8
+};
+
+var pointMarker11 = {
+    radius: 10,
+    fillColor: "#d10008",
+    color: "#000",
+    weight: 1,
+    opacity: 1,
+    fillOpacity: 0.8
+};
+
+var pointMarker12 = {
+    radius: 10,
+    fillColor: "#ff00dd",
+    color: "#000",
+    weight: 1,
+    opacity: 1,
+    fillOpacity: 0.8
+};
+
+var pointMarker13 = {
+    radius: 10,
+    fillColor: "#000080",
+    color: "#000",
+    weight: 1,
+    opacity: 1,
+    fillOpacity: 0.8
+};
+
+
+var boundStyle = {
+	"color": "#0000f7",
+    "weight": 2,
+    "opacity": 1,
+	"fillOpacity": 0.05
+};
+
+var sectionsStyle = {
+	"color": "blue",
+    "weight": 2,
+    "opacity": 1
+};
+
+var noMotorRoadsStyle = {
+    "color": "#770000",
+    "weight": 4,
+    "opacity": 1
+};
+
+var motorRoadsStyle = {
+    "color": "#007700",
+    "weight": 4,
+    "opacity": 1
+};
+
+var boundary = L.geoJSON();
+var sections = L.geoJSON();
+var roads = L.geoJSON();
+var featuresLayer = L.geoJSON();
+var featuresLayer2 = L.geoJSON();
+var featuresLayer3 = L.geoJSON();
+var featuresLayer4 = L.geoJSON();
+var featuresLayer5 = L.geoJSON();
+var featuresLayer6 = L.geoJSON();
+var featuresLayer7 = L.geoJSON();
+var featuresLayer8 = L.geoJSON();
+var featuresLayer9 = L.geoJSON();
+var featuresLayer10 = L.geoJSON();
+var featuresLayer11 = L.geoJSON();
+var featuresLayer12 = L.geoJSON();
+var featuresLayer13 = L.geoJSON();
+var dataLayers = L.layerGroup();
+
+var layerStreets = L.esri.basemapLayer("Streets",{maxZoom: 25, maxNativeZoom: 19});
+
+var layerImagery = L.esri.basemapLayer("Imagery",{maxZoom: 25, maxNativeZoom: 19});
+var baseMaps = {
+	"Topographic": layerTopo,
+	"Imagery": layerImagery
+}
+var overlayMaps = {
+    "Soldier's Lot (Section 75, Lot 7)": featuresLayer,
+	'<a href="#" class=".search-tip"><em style = <b>Sec49</b></a> Section 49': featuresLayer2,
+	"Notables Tour 2020": featuresLayer3,
+	"Independence Tour 2020": featuresLayer4,
+	"African American Tour 2020": featuresLayer5,
+	"Artists Tour 2020": featuresLayer6,
+	"Associations, Societies, & Groups Tour 2020": featuresLayer7,
+	"Authors & Publishers Tour 2020": featuresLayer8,
+	"Business & Finance Tour 2020": featuresLayer9,
+	"Civil War Tour 2020": featuresLayer10,
+	"Pillars of Society Tour 2020": featuresLayer11,
+	"Alb": featuresLayer12,
+	"GAR": featuresLayer13,
+	"Albany Rural Cemetery Boundary": boundary,
+	"Albany Rural Cemetery Roads": roads,
+	"Section Boundaries": sections
+};
+var scaleControl = L.control.scale({ position: 'bottomleft' }).addTo(map);
+var layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
+var searchControl = new L.Control.Search();
+
+function refreshSearch()
+{
+	map.removeControl(searchControl);
+	map.addLayer(dataLayers);
+	searchControl = new L.Control.Search({
+		layer: dataLayers,
+		propertyName: 'Full_Name',
+		marker: false,
+		initial: false,
+		buildTip: function(text, val) {
+			var type = val.layer.feature.properties.title;
+			return '<a href="#" class="'+type+'">'+'<b>'+type+'</b> ' + text+ '</a>';
+		},
+		moveToLocation: function(latlng, title, map) {
+			map.fitBounds( map.getBounds() );
+			var zoom = map.getBoundsZoom(map.getBounds(),true);
+			map.flyTo(latlng, 21); // access the zoom
+			
+		}
+	});
+
+	searchControl.on('search:locationfound', function(e) {
+		var selected = e;
+		e.layer.setStyle({weight: 4});
+		if(e.layer._popup)
+			e.layer.openPopup();
+
+
+	}).on('search:collapsed', function(e) {
+		var selected = null;
+		featuresLayer.eachLayer(function(layer) {	//restore feature color
+			featuresLayer.resetStyle(layer);
+		});	
+	});
+
+	map.addControl( searchControl );  //inizialize search control
+}
+
+function refreshControl()
+{
+	map.removeControl(layerControl);
+	overlayMaps = {
+		'<b style="background:#7587ff;white-space: nowrap;display: inline-block;clear: left;padding: 0 4px;margin-left: 4px;color:white">Lot7</b> Soldiers Lot (Section 75, Lot 7)': featuresLayer,
+		'<b style="background:#75ff87;white-space: nowrap;display: inline-block;clear: left;padding: 0 4px;margin-left: 4px;color:white">Sec49</b> Section 49': featuresLayer2,
+		'<b style="background:#ff7700;white-space: nowrap;display: inline-block;clear: left;padding: 0 4px;margin-left: 4px;color:white">Notable</b> Notables Tour 2020': featuresLayer3,
+		'<b style="background:#7700ff;white-space: nowrap;display: inline-block;clear: left;padding: 0 4px;margin-left: 4px;color:white">Indep</b> Independence Tour 2020': featuresLayer4,
+		'<b style="background:#eedd00;white-space: nowrap;display: inline-block;clear: left;padding: 0 4px;margin-left: 4px;color:white">Afr</b> African American Tour 2020': featuresLayer5,
+		'<b style="background:#ff4277;white-space: nowrap;display: inline-block;clear: left;padding: 0 4px;margin-left: 4px;color:white">Art</b> Artists Tour 2020': featuresLayer6,
+		'<b style="background:#86cece;white-space: nowrap;display: inline-block;clear: left;padding: 0 4px;margin-left: 4px;color:white">Groups</b> Associations, Societies, & Groups Tour 2020': featuresLayer7,
+		'<b style="background:#996038;white-space: nowrap;display: inline-block;clear: left;padding: 0 4px;margin-left: 4px;color:white">AuthPub</b> Authors & Publishers Tour 2020': featuresLayer8,
+		'<b style="background:#558e76;white-space: nowrap;display: inline-block;clear: left;padding: 0 4px;margin-left: 4px;color:white">Business</b> Business & Finance Tour 2020': featuresLayer9,
+		'<b style="background:#a0a0a0;white-space: nowrap;display: inline-block;clear: left;padding: 0 4px;margin-left: 4px;color:white">CivilWar</b> Civil War Tour 2020': featuresLayer10,
+		'<b style="background:#d10008;white-space: nowrap;display: inline-block;clear: left;padding: 0 4px;margin-left: 4px;color:white">Pillars</b> Pillars of Society Tour 2020': featuresLayer11,
+		'<b style="background:#ff00dd;white-space: nowrap;display: inline-block;clear: left;padding: 0 4px;margin-left: 4px;color:white">Mayors of Albany</b> Mayors of Albany': featuresLayer12,
+		'<b style="background:#000080;white-space: nowrap;display: inline-block;clear: left;padding: 0 4px;margin-left: 4px;color:white">G A R</b> Grand Army of the Republic': featuresLayer13,
+		'Albany Rural Cemetery Boundary': boundary,
+		"Albany Rural Cemetery Roads": roads,
+		"Section Boundaries": sections
+	};
+	layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
+}
+
+function addToSearch(layerGroup)
+{
+	map.removeControl(extent);
+	map.removeControl(loc);
+	if ( !L.Browser.mobile ) {
+		map.removeControl(fullscreen);
+	}
+	map.removeControl(searchControl);
+	map.addLayer(layerGroup);
+	if ( !L.Browser.mobile ) {
+		searchControl = new L.Control.Search({
+		layer: layerGroup,
+		propertyName: 'Full_Name',
+		marker: false,
+		initial: false,
+		buildTip: function(text, val) {
+			var type = val.layer.feature.properties.title;
+			return '<a href="#" class="'+type+'">'+'<b>'+type+'</b> ' + text+ '</a>';
+		},
+		moveToLocation: function(latlng, title, map) {
+			map.fitBounds( map.getBounds() );
+			var zoom = map.getBoundsZoom(map.getBounds(),true);
+			map.flyTo(latlng, 21); // access the zoom
+			
+		}
+		});
+	} else {
+		searchControl = new L.Control.Search({
+		layer: layerGroup,
+		propertyName: 'Full_Name',
+		marker: false,
+		initial: false,
+		tooltipLimit: 5,
+		buildTip: function(text, val) {
+			var type = val.layer.feature.properties.title;
+			return '<a href="#" class="'+type+'">'+'<b>'+type+'</b> ' + text+ '</a>';
+		},
+		moveToLocation: function(latlng, title, map) {
+			map.fitBounds( map.getBounds() );
+			var zoom = map.getBoundsZoom(map.getBounds(),true);
+			map.flyTo(latlng, 21); // access the zoom
+			
+		}
+		});
+	}
+	
+
+	searchControl.on('search:locationfound', function(e) {
+		var selected = e;
+		e.layer.setStyle({weight: 4});
+		if(e.layer._popup)
+			e.layer.openPopup();
+
+
+	}).on('search:collapsed', function(e) {
+		var selected = null;
+		featuresLayer.eachLayer(function(layer) {	//restore feature color
+			featuresLayer.resetStyle(layer);
+		});	
+	});
+
+	map.addControl( searchControl );  //inizialize search control
+	if ( !L.Browser.mobile ) {
+		fullscreen.addTo(map); 
+	}
+	extent.addTo(map);
+	loc.addTo(map);
+}
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/ARC_Boundary.geojson",
+	dataType: "json",
+    success: function (data) {
+		boundary = L.geoJSON(data, {
+			style: boundStyle
+		}).addTo(map);
+		boundary.bringToBack();
+    },
+	complete: function () {
+		refreshControl();
+	}
+});
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/Roads2018.geojson",
+	dataType: "json",
+    success: function (data) {
+		roads = L.geoJSON(data, {
+			style: noMotorRoadsStyle,
+			onEachFeature: onEachRoad
+		});
+		roads.bringToBack();
+    },
+	complete: function () {
+		refreshControl();
+	}
+});
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/ARC_Sections.geojson",
+	dataType: "json",
+    success: function (data) {
+		sections = L.geoJSON(data,{
+		pointToLayer: function (feature, latlng) {
+			style: sectionsStyle;
+		},
+		onEachFeature: onEachSection
+		});
+		
+    },
+	complete: function () {
+		refreshControl();
+	}
+});
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/Projected_Sec75_Headstones.geojson",
+	dataType: "json",
+    success: function (data) {
+		featuresLayer = L.geoJSON(data, {
+		pointToLayer: function (feature, latlng) {
+			return L.circleMarker(latlng, pointMarker);
+		},
+		onEachFeature: onEachLot7Feature
+		}).addTo(map);
+    },
+	complete: function () {
+		dataLayers.addLayer(featuresLayer);
+		refreshControl();
+		addToSearch(dataLayers);
+	}
+});
+
+$.ajax({
+	url: "https://www.albany.edu/arce/assets/files/Projected_Sec49_Headstones.geojson",
+	dataType: "json",
+	success: function (data) {
+		featuresLayer2 = L.geoJSON(data, {
+		pointToLayer: function (feature, latlng) {
+			return L.circleMarker(latlng, pointMarker2);
+		},
+		onEachFeature: onEachSec49Feature
+		}).addTo(map);
+	},
+	complete: function () {
+		dataLayers.addLayer(featuresLayer2);
+		refreshControl();
+		addToSearch(dataLayers);
+	}
+});
+
+
+
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/NotablesTour20.geojson",
+	dataType: "json",
+    success: function (data) {
+		featuresLayer3 = L.geoJSON(data, {
+		pointToLayer: function (feature, latlng) {
+			return L.circleMarker(latlng, pointMarker3);
+		},
+		onEachFeature: onEachNotableFeature
+		}).addTo(map);
+    },
+	complete: function () {
+		dataLayers.addLayer(featuresLayer3);
+		refreshControl();
+		addToSearch(dataLayers);
+	}
+});
+
+
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/IndependenceTour20.geojson",
+	dataType: "json",
+    success: function (data) {
+		featuresLayer4 = L.geoJSON(data, {
+		pointToLayer: function (feature, latlng) {
+			return L.circleMarker(latlng, pointMarker4);
+		},
+		onEachFeature: onEachIndepFeature
+		}).addTo(map);
+    },
+	complete: function () {
+		dataLayers.addLayer(featuresLayer4);
+		refreshControl();
+		addToSearch(dataLayers);
+	}
+});
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/AfricanAmericanTour20.geojson",
+	dataType: "json",
+    success: function (data) {
+		featuresLayer5 = L.geoJSON(data, {
+		pointToLayer: function (feature, latlng) {
+			return L.circleMarker(latlng, pointMarker5);
+		},
+		onEachFeature: onEachAAFeature
+		}).addTo(map);
+    },
+	complete: function () {
+		dataLayers.addLayer(featuresLayer5);
+		refreshControl();
+		addToSearch(dataLayers);
+	}
+});
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/ArtistTour20.geojson",
+	dataType: "json",
+    success: function (data) {
+		featuresLayer6 = L.geoJSON(data, {
+		pointToLayer: function (feature, latlng) {
+			return L.circleMarker(latlng, pointMarker6);
+		},
+		onEachFeature: onEachArtistFeature
+		}).addTo(map);
+    },
+	complete: function () {
+		dataLayers.addLayer(featuresLayer6);
+		refreshControl();
+		addToSearch(dataLayers);
+	}
+});
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/AssociationsTour20.geojson",
+	dataType: "json",
+    success: function (data) {
+		featuresLayer7 = L.geoJSON(data, {
+		pointToLayer: function (feature, latlng) {
+			return L.circleMarker(latlng, pointMarker7);
+		},
+		onEachFeature: onEachAssociationFeature
+		}).addTo(map);
+    },
+	complete: function () {
+		dataLayers.addLayer(featuresLayer7);
+		refreshControl();
+		addToSearch(dataLayers);
+	}
+});
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/AuthorsPublishersTour20.geojson",
+	dataType: "json",
+    success: function (data) {
+		featuresLayer8 = L.geoJSON(data, {
+		pointToLayer: function (feature, latlng) {
+			return L.circleMarker(latlng, pointMarker8);
+		},
+		onEachFeature: onEachAuthorFeature
+		}).addTo(map);
+    },
+	complete: function () {
+		dataLayers.addLayer(featuresLayer8);
+		refreshControl();
+		addToSearch(dataLayers);
+	}
+});
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/BusinessFinanceTour20.geojson",
+	dataType: "json",
+    success: function (data) {
+		featuresLayer9 = L.geoJSON(data, {
+		pointToLayer: function (feature, latlng) {
+			return L.circleMarker(latlng, pointMarker9);
+		},
+		onEachFeature: onEachBusinessFeature
+		}).addTo(map);
+    },
+	complete: function () {
+		dataLayers.addLayer(featuresLayer9);
+		refreshControl();
+		addToSearch(dataLayers);
+	}
+});
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/CivilWarTour20.geojson",
+	dataType: "json",
+    success: function (data) {
+		featuresLayer10 = L.geoJSON(data, {
+		pointToLayer: function (feature, latlng) {
+			return L.circleMarker(latlng, pointMarker10);
+		},
+		onEachFeature: onEachCivilWarFeature
+		}).addTo(map);
+    },
+	complete: function () {
+		dataLayers.addLayer(featuresLayer10);
+		refreshControl();
+		addToSearch(dataLayers);
+	}
+});
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/garFixed2.geojson",
+	dataType: "json",
+    success: function (data) {
+		featuresLayer13 = L.geoJSON(data, {
+		pointToLayer: function (feature, latlng) {
+			return L.circleMarker(latlng, pointMarker13);
+		},
+		onEachFeature: onEachGARFeature
+		}).addTo(map);
+    },
+	complete: function () {
+		dataLayers.addLayer(featuresLayer13);
+		refreshControl();
+		addToSearch(dataLayers);
+	}
+});
+
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/AlbanyMayors_fixed.geojson",
+	dataType: "json",
+    success: function (data) {
+		featuresLayer12 = L.geoJSON(data, {
+		pointToLayer: function (feature, latlng) {
+			return L.circleMarker(latlng, pointMarker12);
+		},
+		onEachFeature: onEachMayorFeature
+		}).addTo(map);
+    },
+	complete: function () {
+		dataLayers.addLayer(featuresLayer12);
+		refreshControl();
+		addToSearch(dataLayers);
+	}
+});
+
+$.ajax({
+    url: "https://www.albany.edu/arce/assets/files/SocietyPillarsTour20.geojson",
+	dataType: "json",
+    success: function (data) {
+		featuresLayer11 = L.geoJSON(data, {
+		pointToLayer: function (feature, latlng) {
+			return L.circleMarker(latlng, pointMarker11);
+		},
+		onEachFeature: onEachPillarFeature
+		}).addTo(map);
+    },
+	complete: function () {
+		dataLayers.addLayer(featuresLayer11);
+		refreshControl();
+		addToSearch(dataLayers);
+	}
+});
+
+map.on('overlayadd', function (e) {
+	var refresh = false;
+	searchControl.collapse();
+	var group = L.layerGroup();
+	if (map.hasLayer(featuresLayer))
+	{
+		group.addLayer(featuresLayer);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer2))
+	{
+		group.addLayer(featuresLayer2);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer3))
+	{
+		group.addLayer(featuresLayer3);
+		refresh = true;
+	}
+	if (map.hasLayer(featuresLayer4))
+	{
+		group.addLayer(featuresLayer4);
+		refresh = true;
+	}
+	if (map.hasLayer(featuresLayer5))
+	{
+		group.addLayer(featuresLayer5);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer6))
+	{
+		group.addLayer(featuresLayer6);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer7))
+	{
+		group.addLayer(featuresLayer7);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer8))
+	{
+		group.addLayer(featuresLayer8);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer9))
+	{
+		group.addLayer(featuresLayer9);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer10))
+	{
+		group.addLayer(featuresLayer10);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer11))
+	{
+		group.addLayer(featuresLayer11);
+		refresh = true;
+	}
+	if (map.hasLayer(featuresLayer12))
+	{
+		group.addLayer(featuresLayer12);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer13))
+	{
+		group.addLayer(featuresLayer13);
+		refresh = true;
+	}
+	if (refresh == true)
+	{
+		addToSearch(group);
+	}
+	
+	roads.bringToBack();
+	sections.bringToBack();
+    boundary.bringToBack();
+
+});
+
+map.on('overlayremove',function(e) {
+	var refresh = false;
+		searchControl.collapse();
+	var group = L.layerGroup();
+	if (map.hasLayer(featuresLayer))
+	{
+		group.addLayer(featuresLayer);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer2))
+	{
+		group.addLayer(featuresLayer2);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer3))
+	{
+		group.addLayer(featuresLayer3);
+		refresh = true;
+	}
+	if (map.hasLayer(featuresLayer4))
+	{
+		group.addLayer(featuresLayer4);
+		refresh = true;
+	}
+	if (map.hasLayer(featuresLayer5))
+	{
+		group.addLayer(featuresLayer5);
+		refresh = true;
+	}
+			if (map.hasLayer(featuresLayer6))
+	{
+		group.addLayer(featuresLayer6);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer7))
+	{
+		group.addLayer(featuresLayer7);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer8))
+	{
+		group.addLayer(featuresLayer8);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer9))
+	{
+		group.addLayer(featuresLayer9);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer10))
+	{
+		group.addLayer(featuresLayer10);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer11))
+	{
+		group.addLayer(featuresLayer11);
+		refresh = true;
+	}
+	if (map.hasLayer(featuresLayer12))
+	{
+		group.addLayer(featuresLayer12);
+		refresh = true;
+	}
+		if (map.hasLayer(featuresLayer13))
+	{
+		group.addLayer(featuresLayer13);
+		refresh = true;
+	}
+	if (refresh == true)
+	{
+		addToSearch(group);
+	}
+	
+	roads.bringToBack();
+	sections.bringToBack();
+    boundary.bringToBack();
+
+});
+
+</script>
+
+</body>
+</html>
